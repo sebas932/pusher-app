@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<head>
+  <title>Guybrush - Pusher Test</title>
+  <script src="https://js.pusher.com/3.1/pusher.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flat-ui/2.3.0/css/flat-ui.css">
+  <script src="https://use.fontawesome.com/60483bd848.js"></script>
+  <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+</head>
+<body style="position:relative;border: 1px solid #dedede;min-height: 600px;">
+	
+  <h1>Guybrush Pusher Test</h1>
+
+  <p id="mySessionID"><i class="fa fa-user" aria-hidden="true"></i> Session ID: <span></span></p>
+
+
+  <span id="mouse-template" style="display:none;position:absolute;top:0;left:0;">
+    <i class="fa fa-mouse-pointer" aria-hidden="true"></i>
+    <small style="font-size: 0.6em;vertical-align: top;">{sessionID}</small> 
+  </span>
+
+  <script>
+
+    // Enable pusher logging - don't include this in production
+    Pusher.logToConsole = true;
+
+    var pusher = new Pusher('ee7ac924cbb8ba399d47', {
+      authEndpoint: 'auth.php',
+      encrypted: true
+    });
+
+    var users = [];
+
+    var state = {
+      currentX: 0,
+      currentY: 0,
+      lastX: undefined,
+      lastY: undefined
+    };
+
+    $('#mySessionID span').text(pusher.sessionID);
+
+    var channel = pusher.subscribe("mousemoves");
+
+    channel.bind('mouse-moved', function(data) {
+      if (!(data.sessionID == pusher.sessionID)){
+        var $mousePointer = $('#mouse-'+data.sessionID);
+
+        // Create user if does not exist
+        if (!(users[data.sessionID])){
+          $mousePointer = $('#mouse-template').clone(true).attr('id','mouse-'+data.sessionID );
+          $mousePointer.find("small").text(data.sessionID);
+          $mousePointer.css("color", getRandomColor());
+          $mousePointer.appendTo('body');  
+        }
+
+        // Clear Timeout
+        if (users[data.sessionID]) {
+            clearTimeout(users[data.sessionID]); //cancel the previous timer.
+            users[data.sessionID] = null;
+        }
+
+        // Set Timeout
+        users[data.sessionID] = setTimeout(function(){
+          $mousePointer.fadeOut('slow');
+        }, 1000* 30);
+
+        // Show and update pointer
+        $mousePointer.show();
+        $mousePointer.css("top", data.y+"px").css("left", data.x+"px");
+      }
+
+    });
+
+    document.body.addEventListener('click', onMouseClick, true);
+    function onMouseClick(ev){
+      ev = ev || window.event;
+      state.currentX = ev.pageX || ev.clientX;
+      state.currentY = ev.pageY || ev.clientY;
+      $.ajax({
+        url: 'push.php',
+        data: {
+          sessionID:pusher.sessionID,
+          x: state.currentX,
+          y: state.currentY
+        },
+        success: function(data){}
+      });
+
+    }
+
+    $(document).ready(function(){
+      $('body').trigger('click');
+    });
+
+    function getRandomColor() {
+      var letters = '0123456789ABCDEF'.split('');
+      var color = '#';
+      for (var i = 0; i < 6; i++ ) {
+          color += letters[Math.floor(Math.random() * 16)];
+      }
+      return color;
+    }
+
+  </script>
+</body>
+
+</html>
