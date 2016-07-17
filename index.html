@@ -11,6 +11,7 @@
   <h1>Guybrush Pusher Test</h1>
 
   <p id="mySessionID"><i class="fa fa-user" aria-hidden="true"></i> Session ID: <span></span></p>
+  <p id="usersOnline"> Users Online: <span>0</span></p>
 
 
   <span id="mouse-template" style="display:none;position:absolute;top:0;left:0;">
@@ -28,7 +29,7 @@
       encrypted: true
     });
 
-    var users = [];
+    var me;
 
     var state = {
       currentX: 0,
@@ -37,38 +38,41 @@
       lastY: undefined
     };
 
-    $('#mySessionID span').text(pusher.sessionID);
+    var presenceChannel = pusher.subscribe("presence-mousemoves");
 
-    var channel = pusher.subscribe("mousemoves");
+    
+    presenceChannel.bind('pusher:subscription_error', function(status) {
+    });
 
-    channel.bind('mouse-moved', function(data) {
-      if (!(data.sessionID == pusher.sessionID)){
-        var $mousePointer = $('#mouse-'+data.sessionID);
+    presenceChannel.bind('pusher:subscription_succeeded', function(members) {
+      var me = presenceChannel.members.me;
 
-        // Create user if does not exist
-        if (!(users[data.sessionID])){
-          $mousePointer = $('#mouse-template').clone(true).attr('id','mouse-'+data.sessionID );
-          $mousePointer.find("small").text(data.sessionID);
-          $mousePointer.css("color", getRandomColor());
-          $mousePointer.appendTo('body');  
+      $('#mySessionID span').text(me.id + ' '+me.info.name);
+      
+      members.each(function(member) {
+        if(me.id != member.id){
+          createMousePointer(member);
         }
+      });
 
-        // Clear Timeout
-        if (users[data.sessionID]) {
-            clearTimeout(users[data.sessionID]); //cancel the previous timer.
-            users[data.sessionID] = null;
-        }
+      updateUsersCount(presenceChannel.members.count);
 
-        // Set Timeout
-        users[data.sessionID] = setTimeout(function(){
-          $mousePointer.fadeOut('slow');
-        }, 1000* 30);
+    })
 
-        // Show and update pointer
-        $mousePointer.show();
-        $mousePointer.css("top", data.y+"px").css("left", data.x+"px");
-      }
+    presenceChannel.bind('pusher:member_added', function(member) {
+      createMousePointer(member);
+      updateUsersCount(presenceChannel.members.count);
+    }); 
+    
+    presenceChannel.bind('pusher:member_removed', function(member) {
+      removeMousePointer(member);
+      updateUsersCount(presenceChannel.members.count);
+    });   
 
+    presenceChannel.bind('mouse-moved', function(data) {
+      var $mousePointer = $('#mouse-'+data.sessionID);
+      $mousePointer.css("top", data.y+"px").css("left", data.x+"px");
+      $mousePointer.fadeIn();
     });
 
     document.body.addEventListener('click', onMouseClick, true);
@@ -79,7 +83,7 @@
       $.ajax({
         url: 'push.php',
         data: {
-          sessionID:pusher.sessionID,
+          sessionID: presenceChannel.members.me.id,
           x: state.currentX,
           y: state.currentY
         },
@@ -88,10 +92,6 @@
 
     }
 
-    $(document).ready(function(){
-      $('body').trigger('click');
-    });
-
     function getRandomColor() {
       var letters = '0123456789ABCDEF'.split('');
       var color = '#';
@@ -99,6 +99,24 @@
           color += letters[Math.floor(Math.random() * 16)];
       }
       return color;
+    }
+
+    function updateUsersCount(count){
+      $('#usersOnline span').text(count);
+    }
+
+    function createMousePointer(member){
+      var $mousePointer = $('#mouse-template').clone(true).attr('id','mouse-'+member.id );
+      $mousePointer.find("small").text(member.info.name);
+      $mousePointer.css("color", getRandomColor());
+      $mousePointer.appendTo('body');
+    }
+
+    function removeMousePointer(member){
+      var $mousePointer = $('#mouse-'+member.id);
+      $mousePointer.fadeOut('slow', function(){
+        $mousePointer.remove();
+      });
     }
 
   </script>

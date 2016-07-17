@@ -1,6 +1,5 @@
 <?php
   require __DIR__ . '/vendor/autoload.php';
-  //require('vendor/pusher/pusher-php-server/lib/Pusher.php');
 
   $options = array(
     'encrypted' => true
@@ -16,5 +15,5 @@
   $data['x'] = $_GET['x'];
   $data['y'] = $_GET['y'];
   //print_r($data);
-  $pusher->trigger('mousemoves', 'mouse-moved', $data);
+  $pusher->trigger('presence-mousemoves', 'mouse-moved', $data);
 ?>
